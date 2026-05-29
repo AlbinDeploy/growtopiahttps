@@ -3,6 +3,8 @@ const app = require(path.join(__dirname, 'MainApp.js'));
 const https = require('https');
 const fs = require('fs');
 const tls = require('tls');
+const connectionGuard = require(path.join(__dirname, 'security', 'ConnectionGuard.js'));
+const antiDDoS = require(path.join(__dirname, 'security', 'AntiDDoS.js'));
 
 // Helper to safely load certificates
 function safeReadFileSync(filePath) {
@@ -56,9 +58,15 @@ const serverOptions = {
 /**
  * HTTP server (port 80)
  */
-app.listen(80, () => {
+const httpServer = app.listen(80, () => {
     console.log('Server started at http://localhost:80');
-}).on('request', (req, res) => {
+    console.log('[ANTI-DDOS] Protection active - HTTP layer');
+});
+
+// Apply connection-level guard
+connectionGuard.protect(httpServer);
+
+httpServer.on('request', (req, res) => {
     try {
         const currentTime = new Date().toISOString();
         const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
@@ -79,9 +87,16 @@ app.listen(80, () => {
 /**
  * HTTPS server (port 443)
  */
-https.createServer(serverOptions, app).listen(443, () => {
+const httpsServer = https.createServer(serverOptions, app);
+connectionGuard.protect(httpsServer);
+
+httpsServer.listen(443, () => {
     console.log('Secure server started at https://localhost:443');
-}).on('request', (req, res) => {
+    console.log('[ANTI-DDOS] Protection active - HTTPS layer');
+    console.log('[ANTI-DDOS] Connection Guard active - TCP/TLS layer');
+});
+
+httpsServer.on('request', (req, res) => {
     try {
         const currentTime = new Date().toISOString();
         const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
@@ -98,3 +113,13 @@ https.createServer(serverOptions, app).listen(443, () => {
     console.error('HTTPS client error:', err.message);
     socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
+
+// Anti-DDoS stats logging every 60 seconds
+setInterval(() => {
+    const ddosStats = antiDDoS.getStats();
+    const connStats = connectionGuard.getStats();
+    if (ddosStats.totalRequests > 0) {
+        console.log(`[ANTI-DDOS STATS] Requests: ${ddosStats.totalRequests} | Blocked: ${ddosStats.blockedRequests} | Active Bans: ${ddosStats.activeBans} | Tracked IPs: ${ddosStats.trackedIPs} | Under Attack: ${ddosStats.underAttack}`);
+        console.log(`[CONN-GUARD STATS] Active: ${connStats.activeConnections} | Dropped: ${connStats.droppedConnections} | Unique IPs: ${connStats.uniqueIPs} | Blocked: ${connStats.blockedIPs}`);
+    }
+}, 60000);
