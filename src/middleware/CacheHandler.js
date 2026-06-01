@@ -2,13 +2,14 @@ const express = require('express');
 
 const CacheHandler = (req, res, next) => {
     if (req.path.startsWith('/cache/')) {
-        // Remove any compression-related headers
+        // Remove compression/transfer headers that break Growtopia downloads
         if (req.get('host') == 'www.growtopia1.com') {
             res.removeHeader('Content-Encoding');
             res.removeHeader('Transfer-Encoding');
         }
         
-        // Setting response headers
+        // Setting response headers for cache files
+        // NOTE: Do NOT set Transfer-Encoding here - Growtopia needs Content-Length
         res.set({
             'Accept-Ranges': 'bytes',
             'Alt-Svc': 'quic=":443"; ma=93600; v="43"',
@@ -17,7 +18,7 @@ const CacheHandler = (req, res, next) => {
             'Server': 'nginx',
             'ServerId': '02',
             'ServerLocation': 'apac',
-            'X-Cache-Status': 'MISS',
+            'X-Cache-Status': 'HIT',
             'Last-Modified': new Date().toUTCString(),
             'X-OpenStack-Request-Id': 'tx' + Math.random().toString(36).substring(2),
             'X-Timestamp': (Date.now() / 1000).toString(),
