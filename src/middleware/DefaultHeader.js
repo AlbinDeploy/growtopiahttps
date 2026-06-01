@@ -6,15 +6,26 @@ const RequestLogger = async (req, res, next) => {
         'Access-Control-Allow-Headers',
         'Origin, X-Requested-With, Content-Type, Accept',
     );
-    res.set({
-        'Server': 'nginx',
-        'Transfer-Encoding': 'chunked',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-        'Expires': '-1',
-        'Pragma': 'no-cache',
-        'ETag': ''
-    });
+
+    // For cache/asset downloads - DON'T set Transfer-Encoding: chunked
+    // Growtopia client needs Content-Length for file downloads
+    if (req.path.startsWith('/cache/')) {
+        res.set({
+            'Server': 'nginx',
+            'Connection': 'keep-alive',
+        });
+    } else {
+        res.set({
+            'Server': 'nginx',
+            'Transfer-Encoding': 'chunked',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Expires': '-1',
+            'Pragma': 'no-cache',
+            'ETag': ''
+        });
+    }
+
     const originalStatus = res.status;
     res.status = function(code) {
         return originalStatus.call(this, 200);

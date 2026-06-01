@@ -40,7 +40,10 @@ function fetchFromStorj(storjUrl, res, localPath) {
             const expirationDate = new Date();
             expirationDate.setFullYear(expirationDate.getFullYear() + 1);
 
-            res.set({
+            // Get Content-Length from Storj response - CRITICAL for Growtopia client
+            const contentLength = storjRes.headers['content-length'];
+
+            const headers = {
                 'Content-Type':             'application/octet-stream',
                 'Accept-Ranges':            'bytes',
                 'Cache-Control':            'max-age=31526583',
@@ -54,7 +57,14 @@ function fetchFromStorj(storjUrl, res, localPath) {
                 'X-OpenStack-Request-Id':   'tx' + Math.random().toString(36).substring(2),
                 'X-Timestamp':              (Date.now() / 1000).toString(),
                 'X-Trans-Id':               'tx' + Math.random().toString(36).substring(2),
-            });
+            };
+
+            // Content-Length is essential - Growtopia client needs it to verify download
+            if (contentLength) {
+                headers['Content-Length'] = contentLength;
+            }
+
+            res.set(headers);
 
             // Kalau cache local aktif, simpan file ke disk sambil stream ke client
             if (cnf.storj_cache_local && localPath) {

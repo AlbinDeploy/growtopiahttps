@@ -5,6 +5,10 @@ const bodyParser = require('body-parser');
 
 const app = express();
 
+// ─── ANTI-DDOS (FIRST LINE OF DEFENSE) ────────────────────────────────────────
+const antiDDoS = require(path.join(__dirname, 'security', 'AntiDDoS.js'));
+app.use(antiDDoS.middleware());
+
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 app.use(require(path.join(__dirname, 'middleware', 'DefaultHeader.js')));
 app.use(require(path.join(__dirname, 'middleware', 'Compression.js')));
